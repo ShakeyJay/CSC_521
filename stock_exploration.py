@@ -2,7 +2,8 @@ import yfinance as yf
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import yh.stats as stats
+import scipy.stats as stats
+import yh.stats
 import math
 import numpy.random as rand
 from sklearn.metrics import r2_score, median_absolute_error, mean_absolute_error
@@ -126,7 +127,7 @@ def fetchStocks(stocks, start, end, test_pct, alpha, show):
         df = df[["adj_close", "log_adj_close", "log_returns"]]
 
         # Split into train/test
-        test_set, train_set = np.split(df, [int(test_pct * len(df))])
+        train_set, test_set = np.split(df, [int((1 - test_pct) * len(df))])
 
         return train_set, test_set
 
@@ -175,17 +176,21 @@ def fetchStocks(stocks, start, end, test_pct, alpha, show):
         return train_set, test_set
 
 
-def brownianMotion(df, days, trials, show):
+def brownianMotion(stock, df, days, trials, show):
     """
     Function that simulates Brownian Motion for a single stock to create
     'trials' paths forward looking 'days' ahead. Can be seen as equivalent
     to a simulateOnce() function.
 
     Args:
+    stock (str): name of stock ticker to use for lookup
     df (pandas dataframe): dataframe containing relevant columns for stock
     days (int): number of days ahead to simulate the adj close price for
     trials (int): number of simulations to run
     show (bool): whether to show plots
+
+    Returns:
+    numpy array containing price paths of shape (days, trials)
     """
 
     # log_returns_XXX will always be the 3rd position after we subset
@@ -237,8 +242,11 @@ def brownianMotion(df, days, trials, show):
         # paths that were simulated
         plt.figure(figsize=(15, 6))
         plt.plot(pd.DataFrame(price_paths).iloc[:, 0:30])
+        plt.title('30 modeled paths forward for {} stock'.format(stock))
         plt.show()
         # print(price_paths)
+
+    return price_paths
 
 
 def computePricePath_binomial(S, dT, duration, sigma, riskFreeRate):
@@ -382,27 +390,135 @@ def plot_moving_average(series, window, plot_intervals=False, scale=1.96):
     plt.grid(True)
 
 
-if __name__ == "__main__":
+def compareToTest(stock, paths, actual, confidence):
+    """
+    Function that takes as input the output to the brownianMotion
+    function and calculates the average for each of the days simulated
+    as well as the 'confidence' confidence interval values on those
+    days. It then plots the simulated value for each day with its 
+    confidence interval against the actual value for that stock.
 
-    ### SINGLE STOCK / STRING TEST CASE ###
+    Args:
+    stock (str): name of stock ticker to use for lookup
+    paths (numpy array): numpy array containing price paths of shape (days, trials)
+    test (pandas dataframe): dataframe holding test data for stock
+    confidence (float): percentage to use for the confidence interval
+    """
+    
+    # Create placeholders
+    means = []
+    lower_conf = []
+    upper_conf = []
 
-    # train, test = fetchStocks('IBM', '2019-01-01', '2021-06-12', 0.2, 0.05, True)
+    # Skip first row as that corresponds to last value from training
+    # set and is not a generated path
+    for path in paths[1:,]:
 
-    # Check to see if columns and values are as expected
-    # print(test)
+        # Get mean for the row
+        mew = np.mean(path)
 
-    # brownianMotion(train, 50, 1000, True)
+        # Sort it
+        path.sort()
 
-    ### PORTFOLIO / LIST TEST CASE ###
+        # Get upper and lower tails just like in bootstrap
+        leftTail = int(((1.0 - (confidence))/2) * paths.shape[1])
+        rightTail = (paths.shape[1] - 1) - leftTail
 
-    stocks = ["IBM", "AMZN"]
-    train, test = fetchStocks(stocks, "2019-01-01", "2021-06-12", 0.2, 0.05, True)
+        # Append appropriate values to placeholder
+        means.append(mew)
+        lower_conf.append(path[leftTail])
+        upper_conf.append(path[rightTail])
 
-    # Check to see if columns and values are as expected
-    # print(test)
+    # Plot predicted with confidence interval and actual value
+    x = np.linspace(0, len(means), len(means))
+    plt.figure(figsize=(15,6))
+    plt.plot(actual, 'r', means,'b')
+    plt.fill_between(x, lower_conf, upper_conf, alpha = 0.2)
+    plt.title('Predicted path vs actual path for {} stock'.format(stock))
+    plt.show()
+
+
+def testSingleStock(stock, start_date, end_date, trials, show):
+    """
+    Single stock test case that includes fetching data, splitting
+    data into train/test, showing plots, and using Brownian motion
+    to simulate paths forward. The amount of days to simulate is 
+    hardcoded to be equal to the number of days found in the test
+    set.
+
+    Args:
+    stock (str): name of stock ticker to use for lookup
+    start_date (str): start date to bring data back from
+    end_date (str): last day to bring data back from
+    show (bool): whether or not ot show plots
+    trials (int): number of Monte Carlo trials to run
+    """
+    
+    # Fetch data
+    train, test = fetchStocks(stock, start_date, end_date, 0.2, 0.05, show)
+
+    # Grab adjusted close values from test set
+    actual = test['adj_close'].values
+
+    # Predict potential paths forward for stock equal to the size of
+    # the test set
+    paths = brownianMotion(stock, train, test.shape[0], trials, show)
+
+    # Plot predicted path vs actual path for stock
+    compareToTest(stock, paths, actual, 0.95)
+
+
+def testMultipleStock(stocks, start_date, end_date, trials, show):
+    """
+    Multiple stock test case that includes fetching data, splitting
+    data into train/test, showing plots, and using Brownian motion
+    to simulate paths forward. The amount of days to simulate is 
+    hardcoded to be equal to the number of days found in the test
+    set.
+
+    Args:
+    stock (str): name of stock ticker to use for lookup
+    start_date (str): start date to bring data back from
+    end_date (str): last day to bring data back from
+    show (bool): whether or not ot show plots
+    trials (int): number of Monte Carlo trials to run
+    """
+
+    # Fetch data
+    train, test = fetchStocks(stocks, start_date, end_date, 0.2, 0.05, show)
 
     # Brownian Motion function only takes a single stock as input
     # so need to subset to a single stock first and then run
+    for stock in stocks:
+
+        # Identify columns with stock name in them
+        target_cols = [col for col in train.columns if stock in col]
+
+        # Make a copy of both sets so we can run this in a loop
+        train2 = train.copy(deep = True)
+        test2 = test.copy(deep = True)
+
+        # Subset copies to just the columns for a single stock
+        train2 = train2[target_cols]
+        test2 = test2[target_cols]
+
+        # Grab adjusted close values from test set for this stock
+        actual = test2['adj_close_{}'.format(stock)].values
+
+        # Predict potential paths forward for stock equal to the size of
+        # the test set
+        paths = brownianMotion(stock, train2, test.shape[0], trials, show)
+
+        # Plot predicted path vs actual path for stock
+        compareToTest(stock, paths, actual, 0.95)
+
+
+def timeSeriesStuff():
+
+    stocks = ["IBM", "AMZN"]
+
+    train, test = fetchStocks(stocks, "2019-01-01", "2021-06-12", 0.2, 0.05, True)
+
     for stock in stocks:
 
         # Identify columns with stock name in them
@@ -415,9 +531,6 @@ if __name__ == "__main__":
         # Subset copies to just the columns for a single stock
         train2 = train2[target_cols]
         test2 = test2[target_cols]
-
-        # Predict on training set to verify functionality
-        # brownianMotion(train2, 50, 1000, True)
 
         c = train2.columns[0]
         plotNPaths_binomials(50, train2[c][-1], len(test2))
@@ -443,3 +556,15 @@ if __name__ == "__main__":
 
         m.plot(forecast)
         m.plot_components(forecast)
+
+
+if __name__ == "__main__":
+
+    # Single stock test case
+    testSingleStock('IBM', '2019-01-01', '2021-03-01', 10000, True)
+
+    # Portfolio / list of stocks test case
+    testMultipleStock(['IBM', 'AMZN'], '2019-01-01', '2021-03-01', 10000, True)
+
+    # Xinyuan added code
+    timeSeriesStuff()
