@@ -242,7 +242,7 @@ def brownianMotion(stock, df, days, trials, show):
         # paths that were simulated
         plt.figure(figsize=(15, 6))
         plt.plot(pd.DataFrame(price_paths).iloc[:, 0:30])
-        plt.title('30 modeled paths forward for {} stock'.format(stock))
+        plt.title("30 modeled paths forward for {} stock".format(stock))
         plt.show()
         # print(price_paths)
 
@@ -395,7 +395,7 @@ def compareToTest(stock, paths, actual, confidence):
     Function that takes as input the output to the brownianMotion
     function and calculates the average for each of the days simulated
     as well as the 'confidence' confidence interval values on those
-    days. It then plots the simulated value for each day with its 
+    days. It then plots the simulated value for each day with its
     confidence interval against the actual value for that stock.
 
     Args:
@@ -404,7 +404,7 @@ def compareToTest(stock, paths, actual, confidence):
     test (pandas dataframe): dataframe holding test data for stock
     confidence (float): percentage to use for the confidence interval
     """
-    
+
     # Create placeholders
     means = []
     lower_conf = []
@@ -412,7 +412,9 @@ def compareToTest(stock, paths, actual, confidence):
 
     # Skip first row as that corresponds to last value from training
     # set and is not a generated path
-    for path in paths[1:,]:
+    for path in paths[
+        1:,
+    ]:
 
         # Get mean for the row
         mew = np.mean(path)
@@ -421,7 +423,7 @@ def compareToTest(stock, paths, actual, confidence):
         path.sort()
 
         # Get upper and lower tails just like in bootstrap
-        leftTail = int(((1.0 - (confidence))/2) * paths.shape[1])
+        leftTail = int(((1.0 - (confidence)) / 2) * paths.shape[1])
         rightTail = (paths.shape[1] - 1) - leftTail
 
         # Append appropriate values to placeholder
@@ -431,10 +433,10 @@ def compareToTest(stock, paths, actual, confidence):
 
     # Plot predicted with confidence interval and actual value
     x = np.linspace(0, len(means), len(means))
-    plt.figure(figsize=(15,6))
-    plt.plot(actual, 'r', means,'b')
-    plt.fill_between(x, lower_conf, upper_conf, alpha = 0.2)
-    plt.title('Predicted path vs actual path for {} stock'.format(stock))
+    plt.figure(figsize=(15, 6))
+    plt.plot(actual, "r", means, "b")
+    plt.fill_between(x, lower_conf, upper_conf, alpha=0.2)
+    plt.title("Predicted path vs actual path for {} stock".format(stock))
     plt.show()
 
 
@@ -442,7 +444,7 @@ def testSingleStock(stock, start_date, end_date, trials, show):
     """
     Single stock test case that includes fetching data, splitting
     data into train/test, showing plots, and using Brownian motion
-    to simulate paths forward. The amount of days to simulate is 
+    to simulate paths forward. The amount of days to simulate is
     hardcoded to be equal to the number of days found in the test
     set.
 
@@ -453,12 +455,12 @@ def testSingleStock(stock, start_date, end_date, trials, show):
     show (bool): whether or not ot show plots
     trials (int): number of Monte Carlo trials to run
     """
-    
+
     # Fetch data
     train, test = fetchStocks(stock, start_date, end_date, 0.2, 0.05, show)
 
     # Grab adjusted close values from test set
-    actual = test['adj_close'].values
+    actual = test["adj_close"].values
 
     # Predict potential paths forward for stock equal to the size of
     # the test set
@@ -472,7 +474,7 @@ def testMultipleStock(stocks, start_date, end_date, trials, show):
     """
     Multiple stock test case that includes fetching data, splitting
     data into train/test, showing plots, and using Brownian motion
-    to simulate paths forward. The amount of days to simulate is 
+    to simulate paths forward. The amount of days to simulate is
     hardcoded to be equal to the number of days found in the test
     set.
 
@@ -495,15 +497,15 @@ def testMultipleStock(stocks, start_date, end_date, trials, show):
         target_cols = [col for col in train.columns if stock in col]
 
         # Make a copy of both sets so we can run this in a loop
-        train2 = train.copy(deep = True)
-        test2 = test.copy(deep = True)
+        train2 = train.copy(deep=True)
+        test2 = test.copy(deep=True)
 
         # Subset copies to just the columns for a single stock
         train2 = train2[target_cols]
         test2 = test2[target_cols]
 
         # Grab adjusted close values from test set for this stock
-        actual = test2['adj_close_{}'.format(stock)].values
+        actual = test2["adj_close_{}".format(stock)].values
 
         # Predict potential paths forward for stock equal to the size of
         # the test set
@@ -561,10 +563,10 @@ def timeSeriesStuff():
 if __name__ == "__main__":
 
     # Single stock test case
-    testSingleStock('IBM', '2019-01-01', '2021-03-01', 10000, True)
+    testSingleStock("IBM", "2019-01-01", "2021-03-01", 10000, True)
 
     # Portfolio / list of stocks test case
-    testMultipleStock(['IBM', 'AMZN'], '2019-01-01', '2021-03-01', 10000, True)
+    testMultipleStock(["IBM", "AMZN"], "2019-01-01", "2021-03-01", 10000, True)
 
     # Xinyuan added code
     timeSeriesStuff()
