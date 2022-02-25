@@ -2,14 +2,8 @@
 This is the main location where you will run Portfolio Monte Carlo simulations.
 """
 
-import json
-
 import portfolio
-
-
-def get_conf(conf_file):
-    with open(conf_file, "r", encoding="utf8") as conf:
-        return json.load(conf)
+import utils
 
 
 def test_no_conf():
@@ -22,15 +16,18 @@ def test_no_conf():
 
 
 def test_sim_once():
-    settings = get_conf("confs/test_base.json")
+    settings = utils.load_settings("confs/test_base.json")
 
     port = portfolio.PortfolioSimulator(settings)
 
-    port.simulate_once()
+    balance = port.simulate_once()
+
+    # Going to switch to the logging module when I have time. TODO
+    print(f"test_sim_once final balance: {balance}")
 
 
 def main():
-    return NotImplementedError
+    raise NotImplementedError
 
 
 if __name__ == "__main__":

@@ -2,6 +2,7 @@
 This module is the Portfolio simulator. It is derived from the mc_engine class.
 """
 
+import numpy.random as rand
 
 import mc_engine
 
@@ -26,7 +27,23 @@ class PortfolioSimulator(mc_engine.MonteCarloEngine):
         self.inf_std = 0.01
 
 
-    def simulate_once(self):
-        raise mc_engine.SimulationNotCreated
+    def simulate_once(self) -> float:
+        """
+        Runs a single portfolio simulation using instance settings.
+
+        Returns:
+            float: This is the final balance of one simulation
+        """
+
+        current_balance = self.starting_balance
+        for _ in range(self.duration):
+            inf = rand.normal(self.inf_rate, self.inf_std)
+            ret = rand.normal(self.mean_return, self.std_return)
+            spending = self.withdraw_amt * (1 + inf)
+            current_balance = (current_balance * (1 + ret)) - spending
+            if current_balance <= 0:
+                return 0
+
+        return current_balance
 
     
