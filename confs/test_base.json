@@ -1,5 +1,7 @@
 {
-  "starting_balance": 1000,
-  "withdraw_balance": 10,
-  "duration": 5
+  "starting_balance": 10000,
+  "duration": 5,
+  "base_income": 2000,
+  "base_expenses": 1500,
+  "retirement_year": 3
 }
