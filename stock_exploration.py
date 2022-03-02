@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import scipy.stats as stats
-import yh.stats
+#import yh.stats
 import math
 import numpy.random as rand
 from sklearn.metrics import r2_score, median_absolute_error, mean_absolute_error
@@ -13,6 +13,7 @@ from sklearn.metrics import (
     mean_squared_log_error,
 )
 from prophet import Prophet
+import scipy.linalg as la
 
 
 def plotStocks(is_string, stock, df, alpha):
@@ -466,7 +467,36 @@ def compareToTest(stock, paths, actual, confidence):
     plt.legend(loc = "upper left")
     plt.show()
 
-
+def CholeskyOfTwoStocks(stocks):
+    df = []
+    train, test = fetchStocks(stocks, "2019-01-01", "2021-06-12", 0.2, 0.05, False)
+    mu = []
+    sigma = []
+    for stock in stocks:
+        df.append(train["adj_close_{}".format(stock)].values)
+        mu.append(np.mean(train["adj_close_{}".format(stock)].values))
+        sigma.append(np.std(train["adj_close_{}".format(stock)].values))
+    df1 = pd.DataFrame(df).T
+    C = df1.corr()
+    L = la.cholesky(C, lower=True)
+    
+    x0 = np.random.normal(mu[0], sigma[0], test.shape[0])
+    x1 = np.random.normal(mu[1], sigma[1], test.shape[0])
+    
+    v0 = []
+    v1 = []
+    for i in range(len(x0)):
+        x = np.array((x0[i], x1[i]))  # Column of 2 elements
+        
+        # @ is python's operator for matrix multiplication!
+        c = L @ x
+        
+        # Now add each sample to the corresponding lists
+        v0.append(c[0])
+        v1.append(c[1])
+    print(v0)
+    print(v1)
+    return v0,v1
 def getSimulatedVals(paths):
     """
     Function that takes as input the output from the brownianMotion 
@@ -641,10 +671,11 @@ def timeSeriesStuff():
 if __name__ == "__main__":
 
     # Single stock test case
-    testSingleStock("IBM", "2019-01-01", "2021-03-01", 10000, False)
+    #testSingleStock("IBM", "2019-01-01", "2021-03-01", 10000, False)
 
     # Portfolio / list of stocks test case
-    testMultipleStock(["IBM", "AMZN"], "2019-01-01", "2021-03-01", 10000, False)
+    #testMultipleStock(["IBM", "AMZN"], "2019-01-01", "2021-03-01", 10000, False)
 
     # Xinyuan added code
-    timeSeriesStuff()
+    #timeSeriesStuff()
+    v0,v1 = CholeskyOfTwoStocks(["IBM", "AMZN"])
