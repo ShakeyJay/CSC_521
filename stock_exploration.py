@@ -494,9 +494,9 @@ def CholeskyOfTwoStocks(stocks):
         # Now add each sample to the corresponding lists
         v0.append(c[0])
         v1.append(c[1])
-    print(v0)
-    print(v1)
+    
     return v0,v1
+
 def getSimulatedVals(paths):
     """
     Function that takes as input the output from the brownianMotion 
@@ -671,11 +671,12 @@ def timeSeriesStuff():
 if __name__ == "__main__":
 
     # Single stock test case
-    #testSingleStock("IBM", "2019-01-01", "2021-03-01", 10000, False)
+    testSingleStock("IBM", "2019-01-01", "2021-03-01", 10000, False)
 
     # Portfolio / list of stocks test case
-    #testMultipleStock(["IBM", "AMZN"], "2019-01-01", "2021-03-01", 10000, False)
+    testMultipleStock(["IBM", "AMZN"], "2019-01-01", "2021-03-01", 10000, False)
 
     # Xinyuan added code
-    #timeSeriesStuff()
+    timeSeriesStuff()
+    
     v0,v1 = CholeskyOfTwoStocks(["IBM", "AMZN"])
