@@ -3,16 +3,16 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import scipy.stats as stats
-import yh.stats
+#import yh.stats
 import math
 import numpy.random as rand
-from sklearn.metrics import r2_score, median_absolute_error, mean_absolute_error
-from sklearn.metrics import (
-    median_absolute_error,
-    mean_squared_error,
-    mean_squared_log_error,
-)
-from prophet import Prophet
+#from sklearn.metrics import r2_score, median_absolute_error, mean_absolute_error
+#from sklearn.metrics import (
+#    median_absolute_error,
+#    mean_squared_error,
+#    mean_squared_log_error,
+#)
+#from prophet import Prophet
 
 
 def plotStocks(is_string, stock, df, alpha):
@@ -485,7 +485,8 @@ def getSimulatedVals(paths):
     # paths has adjusted close price values
     # We want to get the mean and stdev of the log returns 
     # np.diff takes the difference between every consecutive pair of values.
-    log_returns = np.diff(np.log(paths))
+    # Need axis = 0 in there to take difference from day to day
+    log_returns = np.diff(np.log(paths), axis = 0)
 
     # Get the mean
     mew = np.mean(log_returns)
@@ -534,7 +535,8 @@ def testSingleStock(stock, start_date, end_date, trials, show):
     # Get mean and st dev of log returns for predicted paths
     mew, sigma = getSimulatedVals(paths)
 
-    print(mew, sigma)
+    print('Mean log return over test set: {}'.format(mew))
+    print('Standard deviation log returns over test set: {}'.format(sigma))
 
 
 def testMultipleStock(stocks, start_date, end_date, trials, show):
@@ -590,7 +592,8 @@ def testMultipleStock(stocks, start_date, end_date, trials, show):
         # Get mean and st dev of log returns for predicted paths
         mew, sigma = getSimulatedVals(paths)
 
-        print(mew, sigma)
+        print('Mean log return over test set: {}'.format(mew))
+        print('Standard deviation log returns over test set: {}'.format(sigma))
 
 
 def timeSeriesStuff():
@@ -641,10 +644,10 @@ def timeSeriesStuff():
 if __name__ == "__main__":
 
     # Single stock test case
-    testSingleStock("IBM", "2019-01-01", "2021-03-01", 10000, False)
+    testSingleStock("IBM", "2019-01-01", "2021-03-01", 1000, False)
 
     # Portfolio / list of stocks test case
-    testMultipleStock(["IBM", "AMZN"], "2019-01-01", "2021-03-01", 10000, False)
+    testMultipleStock(["IBM", "AMZN"], "2019-01-01", "2021-03-01", 1000, False)
 
     # Xinyuan added code
-    timeSeriesStuff()
+    #timeSeriesStuff()
