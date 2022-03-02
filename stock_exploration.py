@@ -463,7 +463,7 @@ def compareToTest(stock, paths, actual, confidence):
     plt.show()
 
 
-def CholeskyOfTwoStocks(stocks):
+def Cholesky(stocks):
     df = []
     train, test = fetchStocks(stocks, "2019-01-01", "2021-06-12", 0.2, 0.05, False)
     mu = []
@@ -476,22 +476,21 @@ def CholeskyOfTwoStocks(stocks):
     C = df1.corr()
     L = la.cholesky(C, lower=True)
     
-    x0 = np.random.normal(mu[0], sigma[0], test.shape[0])
-    x1 = np.random.normal(mu[1], sigma[1], test.shape[0])
-    
-    v0 = []
+    x = []
+    for i in range(len(stocks)):
+        x.append(np.random.normal(mu[i], sigma[i], test.shape[0]))
+
+    v = []
+    for i in range(len(x[0])):
+        b = np.array([a[i] for a in x])
+        c = L @ b
+        v.append(c)
+
     v1 = []
-    for i in range(len(x0)):
-        x = np.array((x0[i], x1[i]))  # Column of 2 elements
-        
-        # @ is python's operator for matrix multiplication!
-        c = L @ x
-        
-        # Now add each sample to the corresponding lists
-        v0.append(c[0])
-        v1.append(c[1])
-    
-    return v0,v1
+    for i in range(len(v[0])):
+        v1.append([a[i] for a in v]) 
+
+    return v1
 
 
 def getSimulatedVals(paths):
@@ -671,12 +670,12 @@ def timeSeriesStuff():
 if __name__ == "__main__":
 
     # Single stock test case
-    testSingleStock("IBM", "2019-01-01", "2021-03-01", 1000, False)
+    #testSingleStock("IBM", "2019-01-01", "2021-03-01", 1000, False)
 
     # Portfolio / list of stocks test case
-    testMultipleStock(["IBM", "AMZN"], "2019-01-01", "2021-03-01", 1000, False)
+    #testMultipleStock(["IBM", "AMZN"], "2019-01-01", "2021-03-01", 1000, False)
 
     # Xinyuan added code
-    timeSeriesStuff()
+    #timeSeriesStuff()
     
-    v0,v1 = CholeskyOfTwoStocks(["IBM", "AMZN"])
+    v = Cholesky(["IBM", "AMZN","TSLA"])
