@@ -176,18 +176,27 @@ def fetchStocks(stocks, start, end, test_pct, alpha, show):
         return train_set, test_set
 
 
-def brownianMotion(stock, df, days, trials, show):
+def brownianMotion(stock, df, days, trials, sampling_flag, show, cov = 1):
     """
-    Function that simulates Brownian Motion for a single stock to create
-    'trials' paths forward looking 'days' ahead. Can be seen as equivalent
-    to a simulateOnce() function.
+    Function that simulates Geometric Brownian Motion for a single stock 
+    to create'trials' paths forward looking 'days' ahead. Can be seen as 
+    equivalent to a simulateOnce() function for a stock. The general form 
+    of geometric Brownian Motion in 1D is:
+
+    S(t+1) = S(t)*exp((mean - 1/2(sigma)**2)*(t[n+1] - t[n]) + sigma*sqrt(t[n+1] - t[n])*Z(t+1))
+
+    However, since we will be doing a random walk on each day, the values 
+    for (t[n+1] - t[n]) will always be 1 and have no purpose in the above
+    equation. Thus, they will be removed from our implementation.
 
     Args:
     stock (str): name of stock ticker to use for lookup
     df (pandas dataframe): dataframe containing relevant columns for stock
     days (int): number of days ahead to simulate the adj close price for
     trials (int): number of simulations to run
+    sampling_flag (str): flag to denote if working in 1 or multiple dimensions
     show (bool): whether to show plots
+    cov (matrix): covariance matrix derived from Cholskey decomposition
 
     Returns:
     numpy array containing price paths of shape (days, trials)
@@ -215,13 +224,31 @@ def brownianMotion(stock, df, days, trials, show):
     # random variables for each day forecased and for the number
     # of simulations that are to be run for this stock
     # Z will have shape (days trials) which is equivalent to getting
-    # a random variable from the normal distribution for each day
+    # a random variable from the standard normal distribution for each day
     # for each trial
-    Z = stats.norm.ppf(np.random.rand(days, trials))
+    Z = np.random.normal(0, 1, (days, trials))
 
     # This is the daily return and the exponential part of the
     # Brownian Motion equation
-    daily_returns = np.exp(drift + st_dev * Z)
+    if sampling_flag == '1D':
+        daily_returns = np.exp(drift + (st_dev * Z))
+
+    else:
+
+        # Leave this in as placeholder for now so code still works
+        # Actual steps are somewhat included below...
+        daily_returns = np.exp(drift + (st_dev * Z))
+
+        # Factor covariance matrix via Cholesky Decomposition
+        #chol = np.linalg.cholesky(cov)
+
+        # Daily returns formula gets updated to use the 
+        ### THIS NEEDS TO BE DONE VIA MATRIX MULTIPLICATION ###
+        ### THIS MEANS THAT AN ERROR WILL OCCUR BECAUSE Z   ###
+        ### WILL ALMOST CERTAINLY BE THE INCORRECT SHAPE    ###
+        ### MATT TO FIX LATER ONCE XINYUAN GETS COVARIANCE  ###
+        ### MATRIX ADDED IN                                 ###
+        #daily_returns = np.exp(drift + np.matmul(chol * Z))
 
     # Instantiate placeholder
     price_paths = np.zeros_like(daily_returns)
@@ -412,9 +439,7 @@ def compareToTest(stock, paths, actual, confidence):
 
     # Skip first row as that corresponds to last value from training
     # set and is not a generated path
-    for path in paths[
-        1:,
-    ]:
+    for path in paths[1:,]:
 
         # Get mean for the row
         mew = np.mean(path)
@@ -434,11 +459,42 @@ def compareToTest(stock, paths, actual, confidence):
     # Plot predicted with confidence interval and actual value
     x = np.linspace(0, len(means), len(means))
     plt.figure(figsize=(15, 6))
-    plt.plot(actual, "r", means, "b")
+    plt.plot(actual, "r", label = 'Actual movement')
+    plt.plot(means, "b", label = 'Avg movement over all paths')
     plt.fill_between(x, lower_conf, upper_conf, alpha=0.2)
     plt.title("Predicted path vs actual path for {} stock".format(stock))
+    plt.legend(loc = "upper left")
     plt.show()
 
+
+def getSimulatedVals(paths):
+    """
+    Function that takes as input the output from the brownianMotion 
+    function. The log returns for each of the rows in paths is derived
+    and used to compute the mean and standard deviation of the log 
+    returns. These variables are returned for use in the portfolio
+    management portion. 
+
+    Args:
+    paths (numpy array_: contains price paths of shape (days, trials)
+
+    Returns:
+    mean and st dev of the log returns from the Brownian Motion simulation
+    """
+
+    # paths has adjusted close price values
+    # We want to get the mean and stdev of the log returns 
+    # np.diff takes the difference between every consecutive pair of values.
+    log_returns = np.diff(np.log(paths))
+
+    # Get the mean
+    mew = np.mean(log_returns)
+
+    # Get the st dev
+    sigma = np.std(log_returns)
+
+    return mew, sigma
+    
 
 def testSingleStock(stock, start_date, end_date, trials, show):
     """
@@ -456,6 +512,12 @@ def testSingleStock(stock, start_date, end_date, trials, show):
     trials (int): number of Monte Carlo trials to run
     """
 
+    # We will always be in the 1D case but nevertheless
+    if type(stock) == str:
+        sampling_flag = '1D'
+    else:
+        sampling_flag = 'Multi'
+
     # Fetch data
     train, test = fetchStocks(stock, start_date, end_date, 0.2, 0.05, show)
 
@@ -464,10 +526,15 @@ def testSingleStock(stock, start_date, end_date, trials, show):
 
     # Predict potential paths forward for stock equal to the size of
     # the test set
-    paths = brownianMotion(stock, train, test.shape[0], trials, show)
+    paths = brownianMotion(stock, train, test.shape[0], trials, sampling_flag, show)
 
     # Plot predicted path vs actual path for stock
     compareToTest(stock, paths, actual, 0.95)
+
+    # Get mean and st dev of log returns for predicted paths
+    mew, sigma = getSimulatedVals(paths)
+
+    print(mew, sigma)
 
 
 def testMultipleStock(stocks, start_date, end_date, trials, show):
@@ -485,6 +552,12 @@ def testMultipleStock(stocks, start_date, end_date, trials, show):
     show (bool): whether or not ot show plots
     trials (int): number of Monte Carlo trials to run
     """
+
+    # We will always be in the Multi case but nevertheless
+    if type(stocks) == str:
+        sampling_flag = '1D'
+    else:
+        sampling_flag = 'Multi'
 
     # Fetch data
     train, test = fetchStocks(stocks, start_date, end_date, 0.2, 0.05, show)
@@ -509,10 +582,15 @@ def testMultipleStock(stocks, start_date, end_date, trials, show):
 
         # Predict potential paths forward for stock equal to the size of
         # the test set
-        paths = brownianMotion(stock, train2, test.shape[0], trials, show)
+        paths = brownianMotion(stock, train2, test.shape[0], trials, sampling_flag, show)
 
         # Plot predicted path vs actual path for stock
         compareToTest(stock, paths, actual, 0.95)
+
+        # Get mean and st dev of log returns for predicted paths
+        mew, sigma = getSimulatedVals(paths)
+
+        print(mew, sigma)
 
 
 def timeSeriesStuff():
@@ -563,10 +641,10 @@ def timeSeriesStuff():
 if __name__ == "__main__":
 
     # Single stock test case
-    testSingleStock("IBM", "2019-01-01", "2021-03-01", 10000, True)
+    testSingleStock("IBM", "2019-01-01", "2021-03-01", 10000, False)
 
     # Portfolio / list of stocks test case
-    testMultipleStock(["IBM", "AMZN"], "2019-01-01", "2021-03-01", 10000, True)
+    testMultipleStock(["IBM", "AMZN"], "2019-01-01", "2021-03-01", 10000, False)
 
     # Xinyuan added code
     timeSeriesStuff()
