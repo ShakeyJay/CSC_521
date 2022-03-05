@@ -9,6 +9,7 @@ import numpy.random as rand
 from sklearn.metrics import r2_score, median_absolute_error, mean_absolute_error,mean_squared_error,mean_squared_log_error
 from prophet import Prophet
 import scipy.linalg as la
+from math import sqrt, exp
 
 
 def plotStocks(is_string, stock, df, alpha):
@@ -271,6 +272,93 @@ def brownianMotion(stock, df, days, trials, sampling_flag, show, cov = 1):
 
     return price_paths
 
+def brownianMotion_Cholesky(stocks,  stick_df, days, trials, sampling_flag, show, cov = 1):
+    df = []
+    sigma = []
+    train, test = fetchStocks(stocks, "2019-01-01", "2021-06-12", 0.2, 0.05, False)
+
+    # Acquire information
+    for stock in stocks:
+        df.append(stick_df["adj_close_{}".format(stock)].values)
+        mew, sigma1 = getSimulatedVals(stick_df["adj_close_{}".format(stock)].values)
+        sigma.append(sigma1)
+    df1 = pd.DataFrame(df).T
+    COEF_MATRIX = df1.corr()
+   
+    # Decomposition
+    R = np.linalg.cholesky(COEF_MATRIX)
+    
+    # Loop through and multiply the matrix 
+    fullList = []
+    for i in range(trials):
+        T = days    
+
+        # Initialize the array                                              
+        stock_price_array = np.full((len(stocks),T), test["adj_close_{}".format(stocks[0])].values[0]) 
+        index= 0
+
+        # Adjust the starting prices accordingly
+        for i in stock_price_array:
+            i[0] = test["adj_close_{}".format(stocks[index])].values[0]
+            index+=1
+            
+        # Some parameters
+        volatility_array = sigma                 
+        r = 0.001                                                
+        dt = 1.0 / T       
+
+        for t in range(1, T):
+            # Generate array of random standard normal draws
+            random_array = np.random.standard_normal(len(stocks))
+            
+            # Multiply R (from factorization) with random_array to obtain correlated epsilons
+            epsilon_array = np.inner(random_array,R)
+    
+            # Sample price path per stock
+            for n in range(len(stocks)):
+                dt = 1 / T 
+                S = stock_price_array[n,t-1]
+                v = volatility_array[n]#*10
+                epsilon = epsilon_array[n]
+                
+                # Generate new stock price
+                stock_price_array[n,t] = S * exp((r - 0.5 * v**2) * dt + v * epsilon)
+                #stock_price_array[n,t] = S * exp((r - 0.5 * v**2) * dt + v * sqrt(dt) * epsilon)
+                #daily_returns = np.exp(drift + (st_dev * Z))
+
+        fullList.append(stock_price_array)
+        
+    # Plot simulated price paths
+    if show:
+        fig = plt.figure()
+        ax = fig.add_subplot(1, 1, 1)
+        array_day_plot = [t for t in range(T)]
+
+        for n in range(len(stocks)):
+            ax.plot(array_day_plot, stock_price_array[n]-((test["adj_close_{}".format(stocks[n])].values[0])-(test["adj_close_{}".format(stocks[0])].values[0])),\
+                                label = '{}'.format(stocks[n]))
+
+        plt.grid()
+        plt.xlabel('Day')
+        plt.ylabel('Asset price')
+        plt.legend(loc='best')
+
+        plt.show()
+
+    # Transfer the result to fullArray to adjust the format
+    fullArray = np.full((len(stocks),trials,days), 0.00)
+    trialN = 0
+    for trial in fullList:
+        stockN = 0
+        for stock in trial:
+            recordN = 0
+            for record in stock:   
+                fullArray[stockN][trialN][recordN] = fullList[trialN][stockN][recordN]
+                recordN += 1
+            stockN+=1
+        trialN+=1
+
+    return fullArray
 
 def computePricePath_binomial(S, dT, duration, sigma, riskFreeRate):
     t = 0
@@ -303,7 +391,7 @@ def plotNPaths_binomials(n, last_price, duration):
     plt.show()
 
 
-def plotResultHistogram_binomials(n, last_price, duration):
+'''def plotResultHistogram_binomials(n, last_price, duration):
     finalPrices = []
     for i in range(n):
         t, p = computePricePath(last_price, 1, duration, 0.1, 0.03)
@@ -324,7 +412,7 @@ def plotResultHistogram_binomials(n, last_price, duration):
     print(round(result.pvalue, 2))  # Cannot reject hypothesis that it comes from a
     # normal dist. So the final prices follow a
     # log-normal distribution
-    print("LogNormal Distribution: mu = %f, std.dev = %f" % (mu, std))
+    print("LogNormal Distribution: mu = %f, std.dev = %f" % (mu, std))'''
 
 
 def computePricePath_continue(S, dT, duration, sigma, riskFreeRate):
@@ -463,7 +551,7 @@ def compareToTest(stock, paths, actual, confidence):
     plt.show()
 
 
-def Cholesky(stocks):
+'''def Cholesky(stocks):
     df = []
     train, test = fetchStocks(stocks, "2019-01-01", "2021-06-12", 0.2, 0.05, False)
     mu = []
@@ -490,7 +578,7 @@ def Cholesky(stocks):
     for i in range(len(v[0])):
         v1.append([a[i] for a in v]) 
 
-    return v1
+    return v1'''
 
 
 def getSimulatedVals(paths):
@@ -589,6 +677,21 @@ def testMultipleStock(stocks, start_date, end_date, trials, show):
 
     # Fetch data
     train, test = fetchStocks(stocks, start_date, end_date, 0.2, 0.05, show)
+    manyPaths = brownianMotion_Cholesky(stocks, train, test.shape[0],trials,sampling_flag, True)
+    
+    # Another loop for handling results returned from brownianMotion_Cholesky().
+    # Do not go to the loop blew since there are multiple stocks
+    stockIndex = 0
+    for paths in manyPaths:
+        compareToTest(stocks[stockIndex], paths.T, test["adj_close_{}".format(stocks[stockIndex])].values, 0.95)
+
+        # Get mean and st dev of log returns for predicted paths
+        mew, sigma = getSimulatedVals(paths)
+
+        print('Mean log return over test set: {}'.format(mew))
+        print('Standard deviation log returns over test set: {}'.format(sigma))
+        
+        stockIndex+=1
 
     # Brownian Motion function only takes a single stock as input
     # so need to subset to a single stock first and then run
@@ -613,7 +716,7 @@ def testMultipleStock(stocks, start_date, end_date, trials, show):
         paths = brownianMotion(stock, train2, test.shape[0], trials, sampling_flag, show)
 
         # Plot predicted path vs actual path for stock
-        compareToTest(stock, paths, actual, 0.95)
+        #compareToTest(stock, paths, actual, 0.95)
 
         # Get mean and st dev of log returns for predicted paths
         mew, sigma = getSimulatedVals(paths)
@@ -674,8 +777,7 @@ if __name__ == "__main__":
 
     # Portfolio / list of stocks test case
     #testMultipleStock(["IBM", "AMZN"], "2019-01-01", "2021-03-01", 1000, False)
+    testMultipleStock(["AAPL", "AMZN", "FB", "GOOG", "MSFT"], "2019-01-01", "2021-03-01", 1000, False)
 
     # Xinyuan added code
     #timeSeriesStuff()
-    
-    v = Cholesky(["IBM", "AMZN","TSLA"])
