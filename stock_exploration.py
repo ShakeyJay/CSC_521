@@ -698,7 +698,7 @@ def testMultipleStock(stocks, start_date, end_date, trials, show):
     # Fetch data
     train, test = fetchStocks(stocks, start_date, end_date, 0.2, 0.05, show)
     manyPaths = brownianMotion_Cholesky(
-        stocks, train, test.shape[0], trials, sampling_flag, True
+        stocks, train, test.shape[0], trials, sampling_flag, False
     )
 
     # Another loop for handling results returned from brownianMotion_Cholesky().
@@ -722,6 +722,9 @@ def testMultipleStock(stocks, start_date, end_date, trials, show):
 
     # Brownian Motion function only takes a single stock as input
     # so need to subset to a single stock first and then run
+
+    results = []
+
     for stock in stocks:
 
         # Identify columns with stock name in them
@@ -752,6 +755,10 @@ def testMultipleStock(stocks, start_date, end_date, trials, show):
 
         print("Mean log return over test set: {}".format(mew))
         print("Standard deviation log returns over test set: {}".format(sigma))
+
+        results.append((stock, mew, sigma))
+
+    return results
 
 
 def timeSeriesStuff():
@@ -806,9 +813,11 @@ if __name__ == "__main__":
 
     # Portfolio / list of stocks test case
     # testMultipleStock(["IBM", "AMZN"], "2019-01-01", "2021-03-01", 1000, False)
-    testMultipleStock(
+    res = testMultipleStock(
         ["AAPL", "AMZN", "FB", "GOOG", "MSFT"], "2019-01-01", "2021-03-01", 1000, False
     )
+
+    print(res)
 
     # Xinyuan added code
     # timeSeriesStuff()

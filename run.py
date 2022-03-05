@@ -44,8 +44,15 @@ def test_run_simulation():
 
 
 def main():
-    raise NotImplementedError
+    settings = utils.load_settings("confs/real_run.json")
+
+    port = portfolio.PortfolioSimulator(settings)
+
+    port.run_simulation()
+
+    # Going to switch to the logging module when I have time. TODO
+    print(f"test_run_simulation final mean balance: {port.results.mean()}")
 
 
 if __name__ == "__main__":
-    test_run_simulation()
+    main()
