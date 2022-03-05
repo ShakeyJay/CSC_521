@@ -1,11 +1,24 @@
 """
 This module is the Portfolio simulator. It is derived from the mc_engine class.
+
+
+Improvement Ideas:
+- Adding multiple income streams and durations
+- Savings Rate so that you can manage your expenses.
+- List of Expenses and if they will always exist
+    - Morgage stuff like that.
+- Instead of just a retirement balance
+    - Have a breakdown of account types.
+    - Real Estate
+    - 401K
+    - Investment Accounts
+    - IRAs
+- Control Income Raises and Peak Income in a better way. 
+
 """
 
 import math
 import numpy as np
-
-# import numpy.random as rand
 
 import mc_engine
 import stock_exploration
@@ -32,8 +45,6 @@ class PortfolioSimulator(mc_engine.MonteCarloEngine):
         # Assumes that we have equal exposure in each of the symbols in our bag.
         self.mean_return, self.std_return = self.create_market_data()
 
-        print(self.mean_return, self.std_return, "RETURNS")
-
         # Maybe we could expand here to use real predictions for what these might be.
         self.inf_rate = 0.03
         self.inf_std = 0.01
@@ -52,14 +63,13 @@ class PortfolioSimulator(mc_engine.MonteCarloEngine):
         self.retirement_year = self.settings.get("retirement_year")
         self.frugal_year = self.settings.get("frugal_years")
 
-    def display(self, year, current_balance, expenses, delta, ret):
+    def display(self, year, current_balance, expenses, delta, ret, income):
         print(
             f"""
                 Year: {year} 
-                Income: {self.income}
+                Income: {income}
                 Expenses: {expenses}
                 Retirement Balance: {current_balance}
-                Delta: {delta}
                 Return %: {ret}
                 Return $: {current_balance * ret}
             """
@@ -112,7 +122,10 @@ class PortfolioSimulator(mc_engine.MonteCarloEngine):
             # This keeps the - sign the same in the return for all possibilities.
             delta = delta - self.income
 
-        self.display(year, c_balance, expenses, delta, ret)
+            self.display(year, c_balance, expenses, delta, ret, self.income)
+        else:
+            self.display(year, c_balance, expenses, delta, ret, 0)
+
         return (c_balance * (1 + ret)) - delta
 
     def get_inflation(self):

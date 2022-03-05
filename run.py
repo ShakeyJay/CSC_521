@@ -50,7 +50,7 @@ def main():
 
     port.run_simulation()
 
-    # Going to switch to the logging module when I have time. TODO
+    # This is a classic just graduate situation.
     print(f"test_run_simulation final mean balance: {port.results.mean()}")
 
 
