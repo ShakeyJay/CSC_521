@@ -280,10 +280,12 @@ def brownianMotion(stock, df, days, trials, sampling_flag, show, cov=1):
     return price_paths
 
 
-def brownianMotion_Cholesky(stocks, stick_df, days, trials, sampling_flag, show, cov=1):
+def brownianMotion_Cholesky(
+    stocks, stick_df, days, trials, sampling_flag, show, test, cov=1
+):
     df = []
     sigma = []
-    train, test = fetchStocks(stocks, "2019-01-01", "2021-06-12", 0.2, 0.05, False)
+    # train, test = fetchStocks(stocks, "2019-01-01", "2021-06-12", 0.2, 0.05, False)
 
     # Acquire information
     for stock in stocks:
@@ -291,7 +293,11 @@ def brownianMotion_Cholesky(stocks, stick_df, days, trials, sampling_flag, show,
         mew, sigma1 = getSimulatedVals(stick_df["adj_close_{}".format(stock)].values)
         sigma.append(sigma1)
     df1 = pd.DataFrame(df).T
+    # COEF_MATRIX = np.cov(df1)  # df1.corr()
     COEF_MATRIX = df1.corr()
+    print(COEF_MATRIX.shape)
+
+    print(COEF_MATRIX)
 
     # Decomposition
     R = np.linalg.cholesky(COEF_MATRIX)
@@ -628,6 +634,8 @@ def getSimulatedVals(paths):
     # Get the st dev
     sigma = np.std(log_returns)
 
+    print(log_returns.shape)
+
     return mew, sigma
 
 
@@ -698,7 +706,7 @@ def testMultipleStock(stocks, start_date, end_date, trials, show):
     # Fetch data
     train, test = fetchStocks(stocks, start_date, end_date, 0.2, 0.05, show)
     manyPaths = brownianMotion_Cholesky(
-        stocks, train, test.shape[0], trials, sampling_flag, False
+        stocks, train, test.shape[0], trials, sampling_flag, False, test
     )
 
     # Another loop for handling results returned from brownianMotion_Cholesky().
@@ -817,7 +825,7 @@ if __name__ == "__main__":
         ["AAPL", "AMZN", "FB", "GOOG", "MSFT"], "2019-01-01", "2021-03-01", 1000, False
     )
 
-    print(res)
+    # print(res)
 
     # Xinyuan added code
     # timeSeriesStuff()

@@ -14,7 +14,6 @@ Improvement Ideas:
     - Investment Accounts
     - IRAs
 - Control Income Raises and Peak Income in a better way. 
-
 """
 
 import math
@@ -62,6 +61,8 @@ class PortfolioSimulator(mc_engine.MonteCarloEngine):
         self.base_expenses = self.settings.get("base_expenses")
         self.retirement_year = self.settings.get("retirement_year")
         self.frugal_year = self.settings.get("frugal_years")
+        self.frugal_saving_rate = self.settings.get("frugal_saving_rate")
+        self.saving_rate = self.settings.get("saving_rate")
 
     def display(self, year, current_balance, expenses, delta, ret, income):
         print(
@@ -101,8 +102,6 @@ class PortfolioSimulator(mc_engine.MonteCarloEngine):
         return current_balance
 
     def calculate_balance_change(self, c_balance: float, year: int) -> float:
-        # At first we assume expenses move by inf but income does not fluctuate.
-        # Assume no income in retirement.
         inf = self.get_inflation()
         ret = self.get_market_returns()
 
@@ -149,7 +148,13 @@ class PortfolioSimulator(mc_engine.MonteCarloEngine):
     def create_market_data(self) -> tuple:
         # This is what we would do if we wanted to do a new stock exploration each time?
         # Probably want to do this each run of monte carlo.
-        # stock_exploration.testMultipleStock(stocks, start_date, end_date, trials, show)
+        stock_exploration.testMultipleStock(
+            ["AAPL", "AMZN", "FB", "GOOG", "MSFT"],
+            "2019-01-01",
+            "2021-03-01",
+            1000,
+            False,
+        )
 
         # For testing I am just using a base return that I got from one run.
         # These are log returns assuming for year but are not real...
