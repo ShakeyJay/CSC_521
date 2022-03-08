@@ -172,14 +172,14 @@ def fetchStocks(stocks, start, end, test_pct, alpha, show):
 def brownianMotion(stock, df, days, trials, show):
     """
     Function that simulates Geometric Brownian Motion for a single stock
-    with uncorrelated values to create'trials' paths forward looking 
-    'days' ahead. Can be seen as equivalent to a simulateOnce() function 
+    with uncorrelated values to create'trials' paths forward looking
+    'days' ahead. Can be seen as equivalent to a simulateOnce() function
     for a stock. The general form of geometric Brownian Motion in 1D is:
 
     S(t+1) = S(t)*exp((mean - 1/2(sigma)**2)*(t[n+1] - t[n]) + sigma*sqrt(t[n+1] - t[n])*Z(t+1))
 
     However, since we will be doing a random walk on each day, the values
-    for the output of (t[n+1] - t[n]) will always be 1 and have no purpose 
+    for the output of (t[n+1] - t[n]) will always be 1 and have no purpose
     in the above equation. Thus, they will be removed from our implementation.
 
     Args:
@@ -249,9 +249,7 @@ def brownianMotion(stock, df, days, trials, show):
     return price_paths
 
 
-def brownianMotion_Cholesky(
-    stocks, stick_df, days, trials, show, test
-):
+def brownianMotion_Cholesky(stocks, stick_df, days, trials, show, test):
     df = []
     sigma = []
     # train, test = fetchStocks(stocks, "2019-01-01", "2021-06-12", 0.2, 0.05, False)
@@ -264,9 +262,9 @@ def brownianMotion_Cholesky(
     df1 = pd.DataFrame(df).T
     # COEF_MATRIX = np.cov(df1)  # df1.corr()
     COEF_MATRIX = df1.corr()
-    #print(COEF_MATRIX.shape)
+    # print(COEF_MATRIX.shape)
 
-    #print(COEF_MATRIX)
+    # print(COEF_MATRIX)
 
     # Decomposition
     R = np.linalg.cholesky(COEF_MATRIX)
@@ -353,7 +351,7 @@ def brownianMotion_Cholesky(
     return fullArray
 
 
-def compareToTest(stock, paths, actual, confidence):
+def compareToTest(stock, paths, actual, confidence, show=False):
     """
     Function that takes as input the output to the brownianMotion
     function and calculates the average for each of the days simulated
@@ -394,15 +392,16 @@ def compareToTest(stock, paths, actual, confidence):
         lower_conf.append(path[leftTail])
         upper_conf.append(path[rightTail])
 
-    # Plot predicted with confidence interval and actual value
-    x = np.linspace(0, len(means), len(means))
-    plt.figure(figsize=(15, 6))
-    plt.plot(actual, "r", label="Actual movement")
-    plt.plot(means, "b", label="Avg movement over all paths")
-    plt.fill_between(x, lower_conf, upper_conf, alpha=0.2)
-    plt.title("Predicted path vs actual path for {} stock".format(stock))
-    plt.legend(loc="upper left")
-    plt.show()
+    if show:
+        # Plot predicted with confidence interval and actual value
+        x = np.linspace(0, len(means), len(means))
+        plt.figure(figsize=(15, 6))
+        plt.plot(actual, "r", label="Actual movement")
+        plt.plot(means, "b", label="Avg movement over all paths")
+        plt.fill_between(x, lower_conf, upper_conf, alpha=0.2)
+        plt.title("Predicted path vs actual path for {} stock".format(stock))
+        plt.legend(loc="upper left")
+        plt.show()
 
 
 def getSimulatedVals(paths):
@@ -432,7 +431,7 @@ def getSimulatedVals(paths):
     # Get the st dev
     sigma = np.std(log_returns)
 
-    #print(log_returns.shape)
+    # print(log_returns.shape)
 
     return mew, sigma
 
@@ -440,9 +439,9 @@ def getSimulatedVals(paths):
 def testSingleStock(stock, start_date, end_date, trials, show):
     """
     Single stock test case that includes fetching data, splitting
-    data into train/test, showing plots, and using uncorrelated 
-    Geometric Brownian Motion to simulate paths forward. The amount 
-    of days to simulate is hardcoded to be equal to the number of 
+    data into train/test, showing plots, and using uncorrelated
+    Geometric Brownian Motion to simulate paths forward. The amount
+    of days to simulate is hardcoded to be equal to the number of
     days found in the test set.
 
     Args:
@@ -464,7 +463,7 @@ def testSingleStock(stock, start_date, end_date, trials, show):
     paths = brownianMotion(stock, train, test.shape[0], trials, show)
 
     # Plot predicted path vs actual path for stock
-    compareToTest(stock, paths, actual, 0.95)
+    compareToTest(stock, paths, actual, 0.95, show=True)
 
     # Get mean and st dev of log returns for predicted paths
     mew, sigma = getSimulatedVals(paths)
@@ -477,8 +476,8 @@ def testMultipleStock(stocks, start_date, end_date, trials, show):
     """
     Multiple stock test case that includes fetching data, splitting
     data into train/test, showing plots, and using correlated Geometric
-    Brownian motion to simulate paths forward. The amount of days to 
-    simulate is hardcoded to be equal to the number of days found in 
+    Brownian motion to simulate paths forward. The amount of days to
+    simulate is hardcoded to be equal to the number of days found in
     the test set.
 
     Args:
@@ -497,30 +496,33 @@ def testMultipleStock(stocks, start_date, end_date, trials, show):
 
     # Another loop for handling results returned from brownianMotion_Cholesky().
     # Do not go to the loop blew since there are multiple stocks
-    stockIndex = 0
-    for paths in manyPaths:
+    ret = []
+    for stockIndex, paths in enumerate(manyPaths):
         compareToTest(
             stocks[stockIndex],
             paths.T,
             test["adj_close_{}".format(stocks[stockIndex])].values,
             0.95,
+            show=False,
         )
 
         # Get mean and st dev of log returns for predicted paths
         mew, sigma = getSimulatedVals(paths)
 
+        ret.append((stocks[stockIndex], mew, sigma))
+
         print("Mean log return over test set: {}".format(mew))
         print("Standard deviation log returns over test set: {}".format(sigma))
 
-        stockIndex += 1
+    return ret
 
 
 if __name__ == "__main__":
 
     # Single stock test case
-    testSingleStock("IBM", "2019-01-01", "2021-03-01", 1000, True)
+    # testSingleStock("IBM", "2019-01-01", "2021-03-01", 1000, True)
 
     # Portfolio / list of stocks test case
     res = testMultipleStock(
-        ["AAPL", "AMZN", "FB", "GOOG", "MSFT"], "2019-01-01", "2021-03-01", 1000, True
+        ["AAPL", "AMZN", "FB", "GOOG", "MSFT"], "2019-01-01", "2021-03-01", 1000, False
     )
