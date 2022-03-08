@@ -3,18 +3,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import scipy.stats as stats
-
-# import yh.stats
-import math
 import numpy.random as rand
-from sklearn.metrics import (
-    r2_score,
-    median_absolute_error,
-    mean_absolute_error,
-    mean_squared_error,
-    mean_squared_log_error,
-)
-from prophet import Prophet
 import scipy.linalg as la
 from math import sqrt, exp
 
@@ -180,27 +169,25 @@ def fetchStocks(stocks, start, end, test_pct, alpha, show):
         return train_set, test_set
 
 
-def brownianMotion(stock, df, days, trials, sampling_flag, show, cov=1):
+def brownianMotion(stock, df, days, trials, show):
     """
     Function that simulates Geometric Brownian Motion for a single stock
-    to create'trials' paths forward looking 'days' ahead. Can be seen as
-    equivalent to a simulateOnce() function for a stock. The general form
-    of geometric Brownian Motion in 1D is:
+    with uncorrelated values to create'trials' paths forward looking 
+    'days' ahead. Can be seen as equivalent to a simulateOnce() function 
+    for a stock. The general form of geometric Brownian Motion in 1D is:
 
     S(t+1) = S(t)*exp((mean - 1/2(sigma)**2)*(t[n+1] - t[n]) + sigma*sqrt(t[n+1] - t[n])*Z(t+1))
 
     However, since we will be doing a random walk on each day, the values
-    for (t[n+1] - t[n]) will always be 1 and have no purpose in the above
-    equation. Thus, they will be removed from our implementation.
+    for the output of (t[n+1] - t[n]) will always be 1 and have no purpose 
+    in the above equation. Thus, they will be removed from our implementation.
 
     Args:
     stock (str): name of stock ticker to use for lookup
     df (pandas dataframe): dataframe containing relevant columns for stock
     days (int): number of days ahead to simulate the adj close price for
     trials (int): number of simulations to run
-    sampling_flag (str): flag to denote if working in 1 or multiple dimensions
     show (bool): whether to show plots
-    cov (matrix): covariance matrix derived from Cholskey decomposition
 
     Returns:
     numpy array containing price paths of shape (days, trials)
@@ -234,25 +221,7 @@ def brownianMotion(stock, df, days, trials, sampling_flag, show, cov=1):
 
     # This is the daily return and the exponential part of the
     # Brownian Motion equation
-    if sampling_flag == "1D":
-        daily_returns = np.exp(drift + (st_dev * Z))
-
-    else:
-
-        # Leave this in as placeholder for now so code still works
-        # Actual steps are somewhat included below...
-        daily_returns = np.exp(drift + (st_dev * Z))
-
-        # Factor covariance matrix via Cholesky Decomposition
-        # chol = np.linalg.cholesky(cov)
-
-        # Daily returns formula gets updated to use the
-        ### THIS NEEDS TO BE DONE VIA MATRIX MULTIPLICATION ###
-        ### THIS MEANS THAT AN ERROR WILL OCCUR BECAUSE Z   ###
-        ### WILL ALMOST CERTAINLY BE THE INCORRECT SHAPE    ###
-        ### MATT TO FIX LATER ONCE XINYUAN GETS COVARIANCE  ###
-        ### MATRIX ADDED IN                                 ###
-        # daily_returns = np.exp(drift + np.matmul(chol * Z))
+    daily_returns = np.exp(drift + (st_dev * Z))
 
     # Instantiate placeholder
     price_paths = np.zeros_like(daily_returns)
@@ -281,7 +250,7 @@ def brownianMotion(stock, df, days, trials, sampling_flag, show, cov=1):
 
 
 def brownianMotion_Cholesky(
-    stocks, stick_df, days, trials, sampling_flag, show, test, cov=1
+    stocks, stick_df, days, trials, show, test
 ):
     df = []
     sigma = []
@@ -295,9 +264,9 @@ def brownianMotion_Cholesky(
     df1 = pd.DataFrame(df).T
     # COEF_MATRIX = np.cov(df1)  # df1.corr()
     COEF_MATRIX = df1.corr()
-    print(COEF_MATRIX.shape)
+    #print(COEF_MATRIX.shape)
 
-    print(COEF_MATRIX)
+    #print(COEF_MATRIX)
 
     # Decomposition
     R = np.linalg.cholesky(COEF_MATRIX)
@@ -384,147 +353,6 @@ def brownianMotion_Cholesky(
     return fullArray
 
 
-def computePricePath_binomial(S, dT, duration, sigma, riskFreeRate):
-    t = 0
-    times = np.array([0])
-    prices = np.array([S])
-
-    u = math.exp(sigma * math.sqrt(dT))
-    d = math.exp(-sigma * math.sqrt(dT))
-
-    p = (math.exp(riskFreeRate * dT) - d) / (u - d)
-
-    while t < duration:
-        t += dT
-        if rand.uniform() < p:
-            S = S * u
-        else:
-            S = S * d
-
-        times = np.append(times, t)
-        prices = np.append(prices, S)
-
-    return times, prices
-
-
-def plotNPaths_binomials(n, last_price, duration):
-    for i in range(n):
-        t, p = computePricePath_binomial(last_price, 1, duration, 0.1, 0.03)
-
-        plt.plot(t, p)
-    plt.show()
-
-
-"""def plotResultHistogram_binomials(n, last_price, duration):
-    finalPrices = []
-    for i in range(n):
-        t, p = computePricePath(last_price, 1, duration, 0.1, 0.03)
-        finalPrices.append(p[len(p) - 1])
-
-    # Plot a histogram of the prices
-    lPrices = np.log(finalPrices)
-    plt.hist(lPrices, bins=30, density=True)
-
-    # Overlay a normal distribution density function
-    xmin, xmax = plt.xlim()  # get the x-limits of the plot
-    mu, std = stats.norm.fit(lPrices)  # fit a normal distribution
-    x = np.linspace(xmin, xmax, 100)  # Compute a set of 100 x's across the plot
-    p = stats.norm.pdf(x, mu, std)  # Compute the normal probability distribution
-    plt.plot(x, p, color="black", linewidth=2)  # Plot it
-
-    result = stats.normaltest(np.log(finalPrices))
-    print(round(result.pvalue, 2))  # Cannot reject hypothesis that it comes from a
-    # normal dist. So the final prices follow a
-    # log-normal distribution
-    print("LogNormal Distribution: mu = %f, std.dev = %f" % (mu, std))"""
-
-
-def computePricePath_continue(S, dT, duration, sigma, riskFreeRate):
-    t = 0
-    times = np.array([0])
-
-    S = math.log(S)
-    prices = np.array([S])
-
-    periodRate = riskFreeRate * dT
-    periodSigma = sigma * math.sqrt(dT)
-    while t < duration:
-        t += dT
-
-        S += rand.normal(periodRate, periodSigma)
-
-        times = np.append(times, t)
-        prices = np.append(prices, S)
-
-    prices = np.exp(prices)
-    return times, prices
-
-
-def plotNPaths_continue(n, last_price, duration):
-    for i in range(n):
-        t, p = computePricePath_continue(last_price, 1, duration, 0.1, 0.03)
-        plt.plot(t, p)
-    plt.show()
-
-
-def plotResultHistogram_continue(n, last_price, duration):
-    finalPrices = []
-    for i in range(n):
-        t, p = computePricePath_continue(last_price, 1, duration, 0.1, 0.03)
-        finalPrices.append(p[len(p) - 1])
-
-    # Plot a histogram of the prices
-    lPrices = np.log(finalPrices)
-    plt.hist(lPrices, bins=30, density=True)
-    # Overlay a normal distribution density function
-    xmin, xmax = plt.xlim()  # get the x-limits of the plot
-    mu, std = stats.norm.fit(lPrices)  # fit a normal distribution
-    x = np.linspace(xmin, xmax, 100)  # Compute a set of 100 x's across the plot
-    p = stats.norm.pdf(x, mu, std)  # Compute the normal probability distribution
-    plt.plot(x, p, color="black", linewidth=2)  # Plot it
-    plt.show()
-
-    plt.hist(finalPrices, bins=120, density=True)
-    # Overlay a normal distribution density function
-    xmin, xmax = plt.xlim()  # get the x-limits of the plot
-    s, loc, scale = stats.lognorm.fit(lPrices)  # fit a normal distribution
-    x = np.linspace(xmin, xmax, 100)  # Compute a set of 100 x's across the plot
-    p = stats.lognorm.pdf(
-        x, s, loc=loc, scale=scale
-    )  # Compute the normal probability distribution
-    plt.plot(x, p, color="black", linewidth=2)  # Plot it
-    plt.show()
-    # print(p)
-
-    result = stats.normaltest(np.log(finalPrices))
-    print(round(result.pvalue, 2))  # Cannot reject hypothesis that it comes from a
-    # normal dist. So the final prices follow a
-    # log-normal distribution
-    print("LogNormal Distribution: mu = %f, std.dev = %f" % (mu, std))
-
-
-def plot_moving_average(series, window, plot_intervals=False, scale=1.96):
-
-    rolling_mean = series.rolling(window=window).mean()
-
-    plt.figure(figsize=(17, 8))
-    plt.title("Moving average\n window size = {}".format(window))
-    plt.plot(rolling_mean, "g", label="Rolling mean trend")
-
-    # Plot confidence intervals for smoothed values
-    if plot_intervals:
-        mae = mean_absolute_error(series[window:], rolling_mean[window:])
-        deviation = np.std(series[window:] - rolling_mean[window:])
-        lower_bound = rolling_mean - (mae + scale * deviation)
-        upper_bound = rolling_mean + (mae + scale * deviation)
-        plt.plot(upper_bound, "r--", label="Upper bound / Lower bound")
-        plt.plot(lower_bound, "r--")
-
-    plt.plot(series[window:], label="Actual values")
-    plt.legend(loc="best")
-    plt.grid(True)
-
-
 def compareToTest(stock, paths, actual, confidence):
     """
     Function that takes as input the output to the brownianMotion
@@ -577,36 +405,6 @@ def compareToTest(stock, paths, actual, confidence):
     plt.show()
 
 
-"""def Cholesky(stocks):
-    df = []
-    train, test = fetchStocks(stocks, "2019-01-01", "2021-06-12", 0.2, 0.05, False)
-    mu = []
-    sigma = []
-    for stock in stocks:
-        df.append(train["adj_close_{}".format(stock)].values)
-        mu.append(np.mean(train["adj_close_{}".format(stock)].values))
-        sigma.append(np.std(train["adj_close_{}".format(stock)].values))
-    df1 = pd.DataFrame(df).T
-    C = df1.corr()
-    L = la.cholesky(C, lower=True)
-    
-    x = []
-    for i in range(len(stocks)):
-        x.append(np.random.normal(mu[i], sigma[i], test.shape[0]))
-
-    v = []
-    for i in range(len(x[0])):
-        b = np.array([a[i] for a in x])
-        c = L @ b
-        v.append(c)
-
-    v1 = []
-    for i in range(len(v[0])):
-        v1.append([a[i] for a in v]) 
-
-    return v1"""
-
-
 def getSimulatedVals(paths):
     """
     Function that takes as input the output from the brownianMotion
@@ -634,7 +432,7 @@ def getSimulatedVals(paths):
     # Get the st dev
     sigma = np.std(log_returns)
 
-    print(log_returns.shape)
+    #print(log_returns.shape)
 
     return mew, sigma
 
@@ -642,24 +440,18 @@ def getSimulatedVals(paths):
 def testSingleStock(stock, start_date, end_date, trials, show):
     """
     Single stock test case that includes fetching data, splitting
-    data into train/test, showing plots, and using Brownian motion
-    to simulate paths forward. The amount of days to simulate is
-    hardcoded to be equal to the number of days found in the test
-    set.
+    data into train/test, showing plots, and using uncorrelated 
+    Geometric Brownian Motion to simulate paths forward. The amount 
+    of days to simulate is hardcoded to be equal to the number of 
+    days found in the test set.
 
     Args:
     stock (str): name of stock ticker to use for lookup
     start_date (str): start date to bring data back from
     end_date (str): last day to bring data back from
-    show (bool): whether or not ot show plots
     trials (int): number of Monte Carlo trials to run
+    show (bool): whether or not ot show plots
     """
-
-    # We will always be in the 1D case but nevertheless
-    if type(stock) == str:
-        sampling_flag = "1D"
-    else:
-        sampling_flag = "Multi"
 
     # Fetch data
     train, test = fetchStocks(stock, start_date, end_date, 0.2, 0.05, show)
@@ -669,7 +461,7 @@ def testSingleStock(stock, start_date, end_date, trials, show):
 
     # Predict potential paths forward for stock equal to the size of
     # the test set
-    paths = brownianMotion(stock, train, test.shape[0], trials, sampling_flag, show)
+    paths = brownianMotion(stock, train, test.shape[0], trials, show)
 
     # Plot predicted path vs actual path for stock
     compareToTest(stock, paths, actual, 0.95)
@@ -684,29 +476,23 @@ def testSingleStock(stock, start_date, end_date, trials, show):
 def testMultipleStock(stocks, start_date, end_date, trials, show):
     """
     Multiple stock test case that includes fetching data, splitting
-    data into train/test, showing plots, and using Brownian motion
-    to simulate paths forward. The amount of days to simulate is
-    hardcoded to be equal to the number of days found in the test
-    set.
+    data into train/test, showing plots, and using correlated Geometric
+    Brownian motion to simulate paths forward. The amount of days to 
+    simulate is hardcoded to be equal to the number of days found in 
+    the test set.
 
     Args:
     stock (str): name of stock ticker to use for lookup
     start_date (str): start date to bring data back from
     end_date (str): last day to bring data back from
-    show (bool): whether or not ot show plots
     trials (int): number of Monte Carlo trials to run
+    show (bool): whether or not ot show plots
     """
-
-    # We will always be in the Multi case but nevertheless
-    if type(stocks) == str:
-        sampling_flag = "1D"
-    else:
-        sampling_flag = "Multi"
 
     # Fetch data
     train, test = fetchStocks(stocks, start_date, end_date, 0.2, 0.05, show)
     manyPaths = brownianMotion_Cholesky(
-        stocks, train, test.shape[0], trials, sampling_flag, False, test
+        stocks, train, test.shape[0], trials, False, test
     )
 
     # Another loop for handling results returned from brownianMotion_Cholesky().
@@ -728,104 +514,13 @@ def testMultipleStock(stocks, start_date, end_date, trials, show):
 
         stockIndex += 1
 
-    # Brownian Motion function only takes a single stock as input
-    # so need to subset to a single stock first and then run
-
-    results = []
-
-    for stock in stocks:
-
-        # Identify columns with stock name in them
-        target_cols = [col for col in train.columns if stock in col]
-
-        # Make a copy of both sets so we can run this in a loop
-        train2 = train.copy(deep=True)
-        test2 = test.copy(deep=True)
-
-        # Subset copies to just the columns for a single stock
-        train2 = train2[target_cols]
-        test2 = test2[target_cols]
-
-        # Grab adjusted close values from test set for this stock
-        actual = test2["adj_close_{}".format(stock)].values
-
-        # Predict potential paths forward for stock equal to the size of
-        # the test set
-        paths = brownianMotion(
-            stock, train2, test.shape[0], trials, sampling_flag, show
-        )
-
-        # Plot predicted path vs actual path for stock
-        # compareToTest(stock, paths, actual, 0.95)
-
-        # Get mean and st dev of log returns for predicted paths
-        mew, sigma = getSimulatedVals(paths)
-
-        print("Mean log return over test set: {}".format(mew))
-        print("Standard deviation log returns over test set: {}".format(sigma))
-
-        results.append((stock, mew, sigma))
-
-    return results
-
-
-def timeSeriesStuff():
-
-    stocks = ["IBM", "AMZN"]
-
-    train, test = fetchStocks(stocks, "2019-01-01", "2021-06-12", 0.2, 0.05, True)
-
-    for stock in stocks:
-
-        # Identify columns with stock name in them
-        target_cols = [col for col in train.columns if stock in col]
-
-        # Make a copy of both sets so we can run this in a loop
-        train2 = train.copy(deep=True)
-        test2 = test.copy(deep=True)
-
-        # Subset copies to just the columns for a single stock
-        train2 = train2[target_cols]
-        test2 = test2[target_cols]
-
-        c = train2.columns[0]
-        plotNPaths_binomials(50, train2[c][-1], len(test2))
-        plotNPaths_continue(50, train2[c][-1], len(test2))
-
-        plotResultHistogram_continue(50, train2[c][-1], len(test2))
-
-        plot_moving_average(train2[c], 30, plot_intervals=True)
-
-        train3 = train2
-        train3["index1"] = train3.index
-
-        data = []
-        data = train3[["index1", c]]
-        data = data.reset_index(drop=True)
-        data.columns = ["ds", "y"]
-
-        m = Prophet()
-        m.fit(data)
-        future = m.make_future_dataframe(periods=len(test2))
-        forecast = m.predict(future)
-        forecast.head()
-
-        m.plot(forecast)
-        m.plot_components(forecast)
-
 
 if __name__ == "__main__":
 
     # Single stock test case
-    # testSingleStock("IBM", "2019-01-01", "2021-03-01", 1000, False)
+    testSingleStock("IBM", "2019-01-01", "2021-03-01", 1000, True)
 
     # Portfolio / list of stocks test case
-    # testMultipleStock(["IBM", "AMZN"], "2019-01-01", "2021-03-01", 1000, False)
     res = testMultipleStock(
-        ["AAPL", "AMZN", "FB", "GOOG", "MSFT"], "2019-01-01", "2021-03-01", 1000, False
+        ["AAPL", "AMZN", "FB", "GOOG", "MSFT"], "2019-01-01", "2021-03-01", 1000, True
     )
-
-    # print(res)
-
-    # Xinyuan added code
-    # timeSeriesStuff()
