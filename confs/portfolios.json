@@ -1,0 +1,5 @@
+{
+  "safe": ["SPY", "SPTL", "GDX"],
+  "blue_chip": ["AAPL", "JPM", "FCX", "T", "MCD", "WMT", "XOM", "JNJ", "BA", "AMT", "D"],
+  "tech_growth": ["AAPL", "TSLA", "NVDA", "NFLX", "MSFT", "GOOG"]
+}

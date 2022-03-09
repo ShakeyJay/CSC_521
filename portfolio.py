@@ -42,7 +42,7 @@ class PortfolioSimulator(mc_engine.MonteCarloEngine):
         self.std_return = 0.08
 
         # Assumes that we have equal exposure in each of the symbols in our bag.
-        self.mean_return, self.std_return = self.create_market_data()
+        # self.mean_return, self.std_return = self.create_market_data()
 
         # Maybe we could expand here to use real predictions for what these might be.
         self.inf_rate = 0.03
@@ -54,6 +54,8 @@ class PortfolioSimulator(mc_engine.MonteCarloEngine):
         self.mean_raise = 0.03
         self.std_raise = 0.01
 
+        self.sim_data = []
+
     def simulation_setup(self):
         self.starting_balance = self.settings.get("starting_balance")
         self.duration = self.settings.get("duration")
@@ -63,6 +65,8 @@ class PortfolioSimulator(mc_engine.MonteCarloEngine):
         self.frugal_year = self.settings.get("frugal_years")
         self.frugal_saving_rate = self.settings.get("frugal_saving_rate")
         self.saving_rate = self.settings.get("saving_rate")
+        self.portfolio = self.settings.get("portfolio")
+        self.mean_return, self.std_return = self.create_market_data()
 
     def display(self, year, current_balance, expenses, delta, ret, income):
         print(
@@ -77,28 +81,19 @@ class PortfolioSimulator(mc_engine.MonteCarloEngine):
         )
 
     def simulate_once(self) -> float:
-        """
-        Runs a single portfolio simulation using instance settings.
-
-        Currently assumes the difference between income and expenses is
-        put into your portfolio.
-
-        Returns:
-            float: This is the final balance of one simulation
-        """
-
         # This is to reset the values for each run. While still using class setup.
         self.simulation_setup()
-
+        ret_bal = np.array([])
         current_balance = self.starting_balance
         for year in range(self.duration):
+
             current_balance = self.calculate_balance_change(current_balance, year)
+            if current_balance <= 0 and year >= self.retirement_year:
+                current_balance = 0
 
-            # This is from the original but because I think we have have non retirement
-            # years we probably do not want this.
-            # if current_balance <= 0:
-            #     return 0
+            ret_bal = np.append(ret_bal, current_balance)
 
+        self.sim_data.append(ret_bal)
         return current_balance
 
     def calculate_balance_change(self, c_balance: float, year: int) -> float:
@@ -106,12 +101,15 @@ class PortfolioSimulator(mc_engine.MonteCarloEngine):
         ret = self.get_market_returns()
 
         if year <= self.frugal_year:
-            delta = self.base_expenses * (1 + inf)
+            delta = max(
+                self.base_expenses * (1 + inf),
+                self.income - (self.frugal_saving_rate * self.income),
+            )
         else:
-            delta = self.income * 0.85
+            delta = self.income - (self.income * self.saving_rate)
 
         expenses = delta
-        self.income = self.get_current_income()
+        self.income = self.get_current_income(bool(year < self.retirement_year))
 
         if year < self.retirement_year:
 
@@ -136,11 +134,11 @@ class PortfolioSimulator(mc_engine.MonteCarloEngine):
         # For now just testing with base values
         return rand.normal(self.mean_return, self.std_return)
 
-    def get_current_income(self) -> float:
+    def get_current_income(self, working: bool) -> float:
         y_raise = rand.normal(self.mean_raise, self.std_raise)
 
         # Assumes you would not accept less money for the same job.
-        if y_raise <= 0:
+        if y_raise <= 0 or not working:
             return self.income
 
         return self.income * (1 + y_raise)
@@ -148,23 +146,13 @@ class PortfolioSimulator(mc_engine.MonteCarloEngine):
     def create_market_data(self) -> tuple:
         # This is what we would do if we wanted to do a new stock exploration each time?
         # Probably want to do this each run of monte carlo.
-        stock_exploration.testMultipleStock(
-            ["AAPL", "AMZN", "FB", "GOOG", "MSFT"],
-            "2019-01-01",
+        stock_data = stock_exploration.testMultipleStock(
+            self.portfolio,
+            "2016-01-01",
             "2021-03-01",
-            1000,
+            10,
             False,
         )
-
-        # For testing I am just using a base return that I got from one run.
-        # These are log returns assuming for year but are not real...
-        stock_data = [
-            ("AAPL", 0.0020828790633105536, 0.024189016710481834),
-            ("AMZN", 0.0012722473617625006, 0.019595222192272565),
-            ("FB", 0.0011387056967148152, 0.023984524891175467),
-            ("GOOG", 0.0005173971622392101, 0.020628542608715498),
-            ("MSFT", 0.001487099827886308, 0.022143122238527862),
-        ]
 
         mean_return = np.array([])
         std_return = np.array([])
@@ -172,42 +160,9 @@ class PortfolioSimulator(mc_engine.MonteCarloEngine):
             mean_return = np.append(mean_return, stock[1])
             std_return = np.append(std_return, stock[2])
 
+        print(self.portfolio)
         print(mean_return.mean(), std_return.mean())
-        print(math.exp(mean_return.mean() * 50), math.exp(std_return.mean()))
+        print(math.exp(mean_return.mean()), math.exp(std_return.mean()))
 
         # placeholder for what the actual values will be just to get it working.
-        return (math.exp(mean_return.mean() * 50)) - 1, math.exp(std_return.mean()) - 1
-
-        # Doing it like this returned some wild results which is why I thought the
-        # std_return might be calculated wrong
-
-        """
-        return (math.exp(mean_return.mean() * 50)) - 1, math.exp(
-            std_return.mean() * 50
-        ) - 1
-
-        (csc521) jhall:CSC_521 $ python run.py 
-        0.0012996658223826773 0.022108085728234646
-        1.0671411935001565 3.0204453470088817
-        0.06714119350015646 2.0204453470088817 RETURNS
-        test_run_simulation final mean balance: -328648.9747992587
-
-        (csc521) jhall:CSC_521 $ python run.py 
-        0.0012996658223826773 0.022108085728234646
-        1.0671411935001565 3.0204453470088817
-        0.06714119350015646 2.0204453470088817 RETURNS
-        test_run_simulation final mean balance: 876159.7329054245
-
-        (csc521) jhall:CSC_521 $ python run.py 
-        0.0012996658223826773 0.022108085728234646
-        1.0671411935001565 3.0204453470088817
-        0.06714119350015646 2.0204453470088817 RETURNS
-        test_run_simulation final mean balance: 1187186.5916939103
-
-        (csc521) jhall:CSC_521 $ python run.py 
-        0.0012996658223826773 0.022108085728234646
-        1.0671411935001565 3.0204453470088817
-        0.06714119350015646 2.0204453470088817 RETURNS
-        test_run_simulation final mean balance: -77805.21839251509
-
-        """
+        return (math.exp(mean_return.mean())) - 1, math.exp(std_return.mean()) - 1

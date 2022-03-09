@@ -490,6 +490,7 @@ def testMultipleStock(stocks, start_date, end_date, trials, show):
 
     # Fetch data
     train, test = fetchStocks(stocks, start_date, end_date, 0.2, 0.05, show)
+
     manyPaths = brownianMotion_Cholesky(
         stocks, train, test.shape[0], trials, False, test
     )
@@ -511,8 +512,9 @@ def testMultipleStock(stocks, start_date, end_date, trials, show):
 
         ret.append((stocks[stockIndex], mew, sigma))
 
-        print("Mean log return over test set: {}".format(mew))
-        print("Standard deviation log returns over test set: {}".format(sigma))
+        if show:
+            print("Mean log return over test set: {}".format(mew))
+            print("Standard deviation log returns over test set: {}".format(sigma))
 
     return ret
 
@@ -520,9 +522,11 @@ def testMultipleStock(stocks, start_date, end_date, trials, show):
 if __name__ == "__main__":
 
     # Single stock test case
-    # testSingleStock("IBM", "2019-01-01", "2021-03-01", 1000, True)
+    # testSingleStock("SPXB", "2019-01-01", "2021-03-01", 1000, True)
 
     # Portfolio / list of stocks test case
     res = testMultipleStock(
-        ["AAPL", "AMZN", "FB", "GOOG", "MSFT"], "2019-01-01", "2021-03-01", 1000, False
+        ["SPY", "SPTL", "GDX"], "2016-01-01", "2021-03-01", 10, False
     )
+
+    print(res)
