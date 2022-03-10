@@ -52,16 +52,16 @@ def main():
 
     options = utils.load_settings("confs/portfolios.json")
 
-    for key, val in options.items():
-        settings["portfolio"] = val
+    # for key, val in options.items():
+    settings["portfolio"] = options["tech_growth"]
 
-        port = portfolio.PortfolioSimulator(settings)
+    port = portfolio.PortfolioSimulator(settings)
 
-        port.run_simulation(sim_count=2)
+    port.run_simulation(sim_count=2)
 
-        plt.plot(np.max(port.sim_data, axis=0), label=f"Max {key}")
-        plt.plot(np.mean(port.sim_data, axis=0), label=f"Mean {key}")
-        plt.plot(np.min(port.sim_data, axis=0), label=f"Min: {key}")
+    # plt.plot(np.max(port.sim_data, axis=0), label=f"Max {key}")
+    # plt.plot(np.mean(port.sim_data, axis=0), label=f"Mean {key}")
+    # plt.plot(np.min(port.sim_data, axis=0), label=f"Min: {key}")
 
     # # This is a classic just graduate situation.
     # print(f"test_run_simulation final mean balance: {port.results.mean()}")
@@ -80,9 +80,9 @@ def main():
     # plt.plot(np.max(port.sim_data, axis=0), label="Max")
     # plt.plot(np.mean(port.sim_data, axis=0), label="Mean")
     # plt.plot(np.min(port.sim_data, axis=0), label="Min")
-    plt.legend()
-    plt.savefig("median_low.png", format="png")
-    plt.show()
+    # plt.legend()
+    # plt.savefig("median_low.png", format="png")
+    # plt.show()
 
     # print(np.mean(port.sim_data, axis=0))
 

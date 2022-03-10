@@ -161,6 +161,7 @@ class PortfolioSimulator(mc_engine.MonteCarloEngine):
             std_return = np.append(std_return, stock[2])
 
         print(self.portfolio)
+        print(stock_data)
         print(mean_return.mean(), std_return.mean())
         print(math.exp(mean_return.mean()), math.exp(std_return.mean()))
 

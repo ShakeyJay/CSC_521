@@ -2,6 +2,7 @@ import yfinance as yf
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import math
 import scipy.stats as stats
 import numpy.random as rand
 import scipy.linalg as la
@@ -280,6 +281,8 @@ def brownianMotion_Cholesky(stocks, stick_df, days, trials, show, test):
         )
         index = 0
 
+        # print(stock_price_array)
+
         # Adjust the starting prices accordingly
         for i in stock_price_array:
             i[0] = test["adj_close_{}".format(stocks[index])].values[0]
@@ -304,12 +307,19 @@ def brownianMotion_Cholesky(stocks, stick_df, days, trials, show, test):
                 v = volatility_array[n]  # *10
                 epsilon = epsilon_array[n]
 
+                # print(S)
+
                 # Generate new stock price
-                stock_price_array[n, t] = S * exp((r - 0.5 * v ** 2) * dt + v * epsilon)
+                stock_price_array[n, t] = S * exp(
+                    (r - (0.5 * v ** 2)) * dt + v * epsilon
+                )
+
                 # stock_price_array[n,t] = S * exp((r - 0.5 * v**2) * dt + v * sqrt(dt) * epsilon)
                 # daily_returns = np.exp(drift + (st_dev * Z))
 
         fullList.append(stock_price_array)
+
+        # print(fullList)
 
     # Plot simulated price paths
     if show:
@@ -347,6 +357,9 @@ def brownianMotion_Cholesky(stocks, stick_df, days, trials, show, test):
                 recordN += 1
             stockN += 1
         trialN += 1
+
+    # print(fullArray)
+    # print(fullList)
 
     return fullArray
 
@@ -423,7 +436,18 @@ def getSimulatedVals(paths):
     # We want to get the mean and stdev of the log returns
     # np.diff takes the difference between every consecutive pair of values.
     # Need axis = 0 in there to take difference from day to day
-    log_returns = np.diff(np.log(paths), axis=0)
+
+    if paths.ndim == 2:
+        log_returns = np.diff(np.log(paths), axis=1)
+        # print(paths)
+        # print(np.log(paths))
+        # print(log_returns)
+        # print(np.mean(np.sum(log_returns, axis=1)), "Mean")
+        # print(np.sum(log_returns, axis=1), "Returns")
+        # print(np.std(np.sum(log_returns, axis=1)), "SIGMA")
+        # print(log_returns.shape, "SHAPE")
+    else:
+        log_returns = np.diff(np.log(paths), axis=0)
 
     # Get the mean
     mew = np.mean(log_returns)
@@ -431,7 +455,7 @@ def getSimulatedVals(paths):
     # Get the st dev
     sigma = np.std(log_returns)
 
-    # print(log_returns.shape)
+    # print(mew, sigma)
 
     return mew, sigma
 
@@ -508,7 +532,7 @@ def testMultipleStock(stocks, start_date, end_date, trials, show):
         )
 
         # Get mean and st dev of log returns for predicted paths
-        mew, sigma = getSimulatedVals(paths)
+        mew, sigma = calculate_yearly_returns(paths)
 
         ret.append((stocks[stockIndex], mew, sigma))
 
@@ -519,6 +543,21 @@ def testMultipleStock(stocks, start_date, end_date, trials, show):
     return ret
 
 
+def calculate_yearly_returns(paths):
+
+    log_returns = np.diff(np.log(paths), axis=1)
+
+    mew = np.mean(np.sum(log_returns, axis=1))
+
+    sigma = np.std(np.sum(log_returns, axis=1))
+
+    yearly_returns = ((math.exp(mew) - 1) / log_returns.shape[1]) * 252
+
+    yearly_std = ((math.exp(sigma) - 1) / log_returns.shape[1]) * 252
+
+    return yearly_returns, yearly_std
+
+
 if __name__ == "__main__":
 
     # Single stock test case
@@ -526,7 +565,11 @@ if __name__ == "__main__":
 
     # Portfolio / list of stocks test case
     res = testMultipleStock(
-        ["SPY", "SPTL", "GDX"], "2016-01-01", "2021-03-01", 10, False
+        ["SPY", "AAPL"],
+        "2012-02-01",
+        "2022-03-01",
+        1000,
+        False,
     )
 
     print(res)
