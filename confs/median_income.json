@@ -1,10 +1,10 @@
 {
   "starting_balance": 0,
-  "duration": 5,
+  "duration": 60,
   "base_income": 32000,
   "base_expenses": 30000,
   "retirement_year": 43,
-  "frugal_years": 20,
+  "frugal_years": 0,
   "frugal_saving_rate": 0.1,
-  "saving_rate": 0.05
+  "saving_rate": 0.1
 }

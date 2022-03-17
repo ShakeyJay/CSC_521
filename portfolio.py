@@ -144,13 +144,12 @@ class PortfolioSimulator(mc_engine.MonteCarloEngine):
         return self.income * (1 + y_raise)
 
     def create_market_data(self) -> tuple:
-        # This is what we would do if we wanted to do a new stock exploration each time?
-        # Probably want to do this each run of monte carlo.
+
         stock_data = stock_exploration.testMultipleStock(
             self.portfolio,
             "2016-01-01",
             "2021-03-01",
-            10,
+            1000,
             False,
         )
 
@@ -160,10 +159,4 @@ class PortfolioSimulator(mc_engine.MonteCarloEngine):
             mean_return = np.append(mean_return, stock[1])
             std_return = np.append(std_return, stock[2])
 
-        print(self.portfolio)
-        print(stock_data)
-        print(mean_return.mean(), std_return.mean())
-        print(math.exp(mean_return.mean()), math.exp(std_return.mean()))
-
-        # placeholder for what the actual values will be just to get it working.
-        return (math.exp(mean_return.mean())) - 1, math.exp(std_return.mean()) - 1
+        return mean_return.mean(), std_return.mean()

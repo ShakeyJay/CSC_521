@@ -8,6 +8,8 @@ import numpy.random as rand
 import scipy.linalg as la
 from math import sqrt, exp
 
+np.random.seed(5)
+
 
 def plotStocks(is_string, stock, df, alpha):
     """
@@ -245,7 +247,6 @@ def brownianMotion(stock, df, days, trials, show):
         plt.plot(pd.DataFrame(price_paths).iloc[:, 0:30])
         plt.title("30 modeled paths forward for {} stock".format(stock))
         plt.show()
-        # print(price_paths)
 
     return price_paths
 
@@ -253,22 +254,22 @@ def brownianMotion(stock, df, days, trials, show):
 def brownianMotion_Cholesky(stocks, stick_df, days, trials, show, test):
     df = []
     sigma = []
-    # train, test = fetchStocks(stocks, "2019-01-01", "2021-06-12", 0.2, 0.05, False)
 
     # Acquire information
     for stock in stocks:
         df.append(stick_df["adj_close_{}".format(stock)].values)
         mew, sigma1 = getSimulatedVals(stick_df["adj_close_{}".format(stock)].values)
         sigma.append(sigma1)
-    df1 = pd.DataFrame(df).T
-    # COEF_MATRIX = np.cov(df1)  # df1.corr()
-    COEF_MATRIX = df1.corr()
-    # print(COEF_MATRIX.shape)
 
-    # print(COEF_MATRIX)
+    df1 = pd.DataFrame(df).T
+    COEF_MATRIX = df1.corr()
 
     # Decomposition
     R = np.linalg.cholesky(COEF_MATRIX)
+
+    # print(R)
+
+    import sys
 
     # Loop through and multiply the matrix
     fullList = []
@@ -280,8 +281,6 @@ def brownianMotion_Cholesky(stocks, stick_df, days, trials, show, test):
             (len(stocks), T), test["adj_close_{}".format(stocks[0])].values[0]
         )
         index = 0
-
-        # print(stock_price_array)
 
         # Adjust the starting prices accordingly
         for i in stock_price_array:
@@ -307,19 +306,33 @@ def brownianMotion_Cholesky(stocks, stick_df, days, trials, show, test):
                 v = volatility_array[n]  # *10
                 epsilon = epsilon_array[n]
 
-                # print(S)
+                # I tried a lot of different versions of this while I was debugging.
 
                 # Generate new stock price
-                stock_price_array[n, t] = S * exp(
-                    (r - (0.5 * v ** 2)) * dt + v * epsilon
+                # OG
+                # stock_price_array[n, t] = S * exp(
+                #     (r - (0.5 * v ** 2)) * dt + v * epsilon
+                # )
+
+                # I think the correct way to do OG
+                # stock_price_array[n, t] = S * exp((r - ((v ** 2) / 2)) * dt) + (
+                #     v * math.sqrt(dt * epsilon)
+                # )
+
+                # Try again
+                stock_price_array[n, t] = S * math.exp(
+                    (r - 0.5 * v ** 2) * dt + v * math.sqrt(dt) * epsilon
                 )
+
+                # Other Equation
+                # stock_price_array[n, t] = S * math.exp(
+                #     ((mew - ((v ** 2) / 2)) * dt) + (v * epsilon * math.sqrt(dt))
+                # )
 
                 # stock_price_array[n,t] = S * exp((r - 0.5 * v**2) * dt + v * sqrt(dt) * epsilon)
                 # daily_returns = np.exp(drift + (st_dev * Z))
 
         fullList.append(stock_price_array)
-
-        # print(fullList)
 
     # Plot simulated price paths
     if show:
@@ -357,9 +370,6 @@ def brownianMotion_Cholesky(stocks, stick_df, days, trials, show, test):
                 recordN += 1
             stockN += 1
         trialN += 1
-
-    # print(fullArray)
-    # print(fullList)
 
     return fullArray
 
@@ -439,13 +449,6 @@ def getSimulatedVals(paths):
 
     if paths.ndim == 2:
         log_returns = np.diff(np.log(paths), axis=1)
-        # print(paths)
-        # print(np.log(paths))
-        # print(log_returns)
-        # print(np.mean(np.sum(log_returns, axis=1)), "Mean")
-        # print(np.sum(log_returns, axis=1), "Returns")
-        # print(np.std(np.sum(log_returns, axis=1)), "SIGMA")
-        # print(log_returns.shape, "SHAPE")
     else:
         log_returns = np.diff(np.log(paths), axis=0)
 
@@ -534,11 +537,15 @@ def testMultipleStock(stocks, start_date, end_date, trials, show):
         # Get mean and st dev of log returns for predicted paths
         mew, sigma = calculate_yearly_returns(paths)
 
+        mew2, sigma2 = getSimulatedVals(paths)
+
         ret.append((stocks[stockIndex], mew, sigma))
 
         if show:
-            print("Mean log return over test set: {}".format(mew))
-            print("Standard deviation log returns over test set: {}".format(sigma))
+            print("Mean log return over test set: {}".format(mew2))
+            print("Mean return over test set: {}".format(mew))
+            print("Standard deviation log returns over test set: {}".format(sigma2))
+            print("Standard deviation returns over test set: {}".format(sigma2))
 
     return ret
 
@@ -547,13 +554,13 @@ def calculate_yearly_returns(paths):
 
     log_returns = np.diff(np.log(paths), axis=1)
 
-    mew = np.mean(np.sum(log_returns, axis=1))
+    mew = np.mean(np.sum(log_returns, axis=1) / log_returns.shape[1])
 
-    sigma = np.std(np.sum(log_returns, axis=1))
+    sigma = np.std(np.sum(log_returns, axis=1) / log_returns.shape[1])
 
-    yearly_returns = ((math.exp(mew) - 1) / log_returns.shape[1]) * 252
+    yearly_returns = ((math.exp(mew) - 1)) * 252
 
-    yearly_std = ((math.exp(sigma) - 1) / log_returns.shape[1]) * 252
+    yearly_std = ((math.exp(sigma) - 1)) * 252
 
     return yearly_returns, yearly_std
 
@@ -566,9 +573,9 @@ if __name__ == "__main__":
     # Portfolio / list of stocks test case
     res = testMultipleStock(
         ["SPY", "AAPL"],
-        "2012-02-01",
+        "2016-02-01",
         "2022-03-01",
-        1000,
+        2,
         False,
     )
 
