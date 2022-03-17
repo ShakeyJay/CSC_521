@@ -149,7 +149,7 @@ class PortfolioSimulator(mc_engine.MonteCarloEngine):
             self.portfolio,
             "2016-01-01",
             "2021-03-01",
-            1000,
+            10,
             False,
         )
 

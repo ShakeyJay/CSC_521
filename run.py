@@ -50,42 +50,24 @@ def test_run_simulation():
 
 
 def main():
-    # settings = utils.load_settings("confs/median_income.json")
-    settings = utils.load_settings("confs/college_grad.json")
+    settings = utils.load_settings("confs/median_income.json")
+    # settings = utils.load_settings("confs/college_grad.json")
 
     options = utils.load_settings("confs/portfolios.json")
 
-    # for key, val in options.items():
-    key = "tech_growth"
-    settings["portfolio"] = options[key]
+    for key, val in options.items():
+        settings["portfolio"] = val
 
-    port = portfolio.PortfolioSimulator(settings)
+        port = portfolio.PortfolioSimulator(settings)
 
-    port.run_simulation(sim_count=3)
+        port.run_simulation(sim_count=3)
 
-    plt.plot(np.max(port.sim_data, axis=0), label=f"Max {key}")
-    plt.plot(np.mean(port.sim_data, axis=0), label=f"Mean {key}")
-    plt.plot(np.min(port.sim_data, axis=0), label=f"Min: {key}")
+        plt.plot(np.max(port.sim_data, axis=0), label=f"Max {key}")
+        plt.plot(np.mean(port.sim_data, axis=0), label=f"Mean {key}")
+        plt.plot(np.min(port.sim_data, axis=0), label=f"Min: {key}")
 
-    # # This is a classic just graduate situation.
-    # print(f"test_run_simulation final mean balance: {port.results.mean()}")
-
-    # # print(port.sim_data)
-
-    # # for sim in port.sim_data:
-    # #     plt.plot(sim)
-
-    # # fig = plt.figure()
-    # # plt.figure().clear()
-    # # plt.close()
-    # # plt.cla()
-    # # plt.clf()
-
-    # plt.plot(np.max(port.sim_data, axis=0), label="Max")
-    # plt.plot(np.mean(port.sim_data, axis=0), label="Mean")
-    # plt.plot(np.min(port.sim_data, axis=0), label="Min")
     plt.legend()
-    plt.savefig("median_low.png", format="png")
+    plt.savefig("median_sim_ann.png", format="png")
     plt.show()
 
     # print(np.mean(port.sim_data, axis=0))
@@ -128,4 +110,4 @@ def savings_raise(settings, temp):
 
 
 if __name__ == "__main__":
-    run_sim_annealing()
+    main()

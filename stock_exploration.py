@@ -310,9 +310,9 @@ def brownianMotion_Cholesky(stocks, stick_df, days, trials, show, test):
 
                 # Generate new stock price
                 # OG
-                # stock_price_array[n, t] = S * exp(
-                #     (r - (0.5 * v ** 2)) * dt + v * epsilon
-                # )
+                stock_price_array[n, t] = S * exp(
+                    (r - (0.5 * v ** 2)) * dt + v * epsilon
+                )
 
                 # I think the correct way to do OG
                 # stock_price_array[n, t] = S * exp((r - ((v ** 2) / 2)) * dt) + (
@@ -320,9 +320,9 @@ def brownianMotion_Cholesky(stocks, stick_df, days, trials, show, test):
                 # )
 
                 # Try again
-                stock_price_array[n, t] = S * math.exp(
-                    (r - 0.5 * v ** 2) * dt + v * math.sqrt(dt) * epsilon
-                )
+                # stock_price_array[n, t] = S * math.exp(
+                #     (r - 0.5 * v ** 2) * dt + v * math.sqrt(dt) * epsilon
+                # )
 
                 # Other Equation
                 # stock_price_array[n, t] = S * math.exp(
